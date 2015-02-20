@@ -47,3 +47,12 @@ interface HTMLElement : Element {
 };
 HTMLElement implements GlobalEventHandlers;
 HTMLElement implements ElementCSSInlineStyle;
+
+// http://dev.w3.org/csswg/cssom-view/#extensions-to-the-htmlelement-interface
+partial interface HTMLElement {
+  readonly attribute Element? offsetParent;
+  //readonly attribute double offsetTop;
+  //readonly attribute double offsetLeft;
+  //readonly attribute double offsetWidth;
+  //readonly attribute double offsetHeight;
+};

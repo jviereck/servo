@@ -40,7 +40,7 @@ use net::storage_task::StorageTask;
 use util::str::{DOMString,HTML_SPACE_CHARACTERS};
 
 use js::jsapi::JS_EvaluateUCScript;
-use js::jsapi::JSContext;
+use js::jsapi::{JSContext, JSRuntime};
 use js::jsapi::{JS_GC, JS_GetRuntime};
 use js::jsval::{JSVal, UndefinedValue};
 use js::rust::with_compartment;
@@ -77,6 +77,13 @@ impl Window {
     pub fn get_cx(&self) -> *mut JSContext {
         let js_info = self.page().js_info();
         (*js_info.as_ref().unwrap().js_context).ptr
+    }
+
+    #[allow(unsafe_blocks)]
+    pub fn get_rt(&self) -> *mut JSRuntime {
+        unsafe {
+            JS_GetRuntime(self.get_cx())
+        }
     }
 
     pub fn script_chan(&self) -> Box<ScriptChan+Send> {

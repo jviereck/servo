@@ -13,7 +13,7 @@ use dom::node::{Node, NodeHelpers};
 use dom::window::Window;
 use devtools_traits::DevtoolsControlChan;
 use layout_interface::{
-    ContentBoxResponse, ContentBoxesResponse,
+    ContentBoxResponse, ContentBoxesResponse, OffsetParentResponse,
     HitTestResponse, LayoutChan, LayoutRPC, MouseOverResponse, Msg, Reflow,
     ReflowGoal, ReflowQueryType,
     TrustedNodeAddress
@@ -197,6 +197,13 @@ impl Page {
         self.join_layout(); //FIXME: is this necessary, or is layout_rpc's mutex good enough?
         let ContentBoxesResponse(rects) = self.layout_rpc.content_boxes();
         rects
+    }
+
+    pub fn offset_parent_query(&self, offset_parent_request: TrustedNodeAddress) -> Option<UntrustedNodeAddress> {
+        self.flush_layout(ReflowGoal::ForScriptQuery, ReflowQueryType::OffsetParentQuery(offset_parent_request));
+        self.join_layout(); //FIXME: is this necessary, or is layout_rpc's mutex good enough?
+        let OffsetParentResponse(node) = self.layout_rpc.offset_parent();
+        node
     }
 
     // must handle root case separately

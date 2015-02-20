@@ -38,7 +38,7 @@ use script::dom::bindings::js::LayoutJS;
 use script::dom::node::{LayoutDataRef, Node, NodeTypeId};
 use script::dom::element::ElementTypeId;
 use script::dom::htmlelement::HTMLElementTypeId;
-use script::layout_interface::{ContentBoxResponse, ContentBoxesResponse};
+use script::layout_interface::{ContentBoxResponse, ContentBoxesResponse, OffsetParentResponse};
 use script::layout_interface::ReflowQueryType;
 use script::layout_interface::{HitTestResponse, LayoutChan, LayoutRPC};
 use script::layout_interface::{MouseOverResponse, Msg};
@@ -108,6 +108,8 @@ pub struct LayoutTaskData {
 
     /// A queued response for the content boxes of a node.
     pub content_boxes_response: Vec<Rect<Au>>,
+
+    pub offset_parent_response: Option<UntrustedNodeAddress>,
 }
 
 /// Information needed by the layout task.
@@ -290,6 +292,7 @@ impl LayoutTask {
                     generation: 0,
                     content_box_response: Rect::zero(),
                     content_boxes_response: Vec::new(),
+                    offset_parent_response: None,
               })),
         }
     }
@@ -627,6 +630,20 @@ impl LayoutTask {
         rw_data.content_boxes_response = iterator.rects;
     }
 
+    fn process_offset_parent_request<'a>(&'a self,
+                                     requested_node: TrustedNodeAddress,
+                                     layout_root: &mut FlowRef,
+                                     rw_data: &mut RWGuard<'a>) {
+
+        // See:
+        // http://dev.w3.org/csswg/cssom-view/#extensions-to-the-htmlelement-interface
+
+        // TODO(jviereck): Perform a proper implementation here. For now just
+        // passing back the original node to run the query on.
+        let requested_node: OpaqueNode = OpaqueNodeMethods::from_script_node(requested_node);
+        rw_data.offset_parent_response = Some(requested_node.to_untrusted_node_address());
+    }
+
     fn build_display_list_for_reflow<'a>(&'a self,
                                          data: &Reflow,
                                          node: &mut LayoutNode,
@@ -869,6 +886,9 @@ impl LayoutTask {
             ReflowQueryType::ContentBoxesQuery(node) => {
                 self.process_content_boxes_request(node, &mut layout_root, &mut rw_data)
             }
+            ReflowQueryType::OffsetParentQuery(node) => {
+                self.process_offset_parent_request(node, &mut layout_root, &mut rw_data)
+            }
             ReflowQueryType::NoQuery => {}
         }
 
@@ -970,6 +990,12 @@ impl LayoutRPC for LayoutRPCImpl {
         let &LayoutRPCImpl(ref rw_data) = self;
         let rw_data = rw_data.lock().unwrap();
         ContentBoxesResponse(rw_data.content_boxes_response.clone())
+    }
+
+    fn offset_parent(&self) -> OffsetParentResponse {
+        let &LayoutRPCImpl(ref rw_data) = self;
+        let rw_data = rw_data.lock().unwrap();
+        OffsetParentResponse(rw_data.offset_parent_response)
     }
 
     /// Requests the node containing the point of interest.

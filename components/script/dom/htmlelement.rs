@@ -9,7 +9,7 @@ use dom::bindings::codegen::Bindings::HTMLElementBinding;
 use dom::bindings::codegen::Bindings::HTMLElementBinding::HTMLElementMethods;
 use dom::bindings::codegen::Bindings::HTMLInputElementBinding::HTMLInputElementMethods;
 use dom::bindings::codegen::Bindings::WindowBinding::WindowMethods;
-use dom::bindings::codegen::InheritTypes::{ElementCast, HTMLFrameSetElementDerived};
+use dom::bindings::codegen::InheritTypes::{ElementCast, NodeCast, HTMLFrameSetElementDerived};
 use dom::bindings::codegen::InheritTypes::{EventTargetCast, HTMLInputElementCast};
 use dom::bindings::codegen::InheritTypes::{HTMLElementDerived, HTMLBodyElementDerived};
 use dom::bindings::js::{JSRef, Temporary, MutNullableJS};
@@ -24,7 +24,7 @@ use dom::eventtarget::{EventTarget, EventTargetHelpers, EventTargetTypeId};
 use dom::htmlinputelement::HTMLInputElement;
 use dom::htmlmediaelement::HTMLMediaElementTypeId;
 use dom::htmltablecellelement::HTMLTableCellElementTypeId;
-use dom::node::{Node, NodeTypeId, window_from_node};
+use dom::node::{Node, NodeHelpers, NodeTypeId, from_untrusted_node_address, window_from_node};
 use dom::virtualmethods::VirtualMethods;
 
 use util::str::DOMString;
@@ -119,6 +119,24 @@ impl<'a> HTMLElementMethods for JSRef<'a, HTMLElement> {
         } else {
             let target: JSRef<EventTarget> = EventTargetCast::from_ref(self);
             target.set_event_handler_common("load", listener)
+        }
+    }
+
+    fn GetOffsetParent(self) -> Option<Temporary<Element>> {
+        let win = window_from_node(self).root();
+        let self_node: JSRef<Node> = NodeCast::from_ref(self);
+        match win.r().page().offset_parent_query(self_node.to_trusted_node_address()) {
+            Some(node_address) => {
+               let temp_node = from_untrusted_node_address(win.r().get_rt(), node_address);
+               // @REVIEWER: Please check if the following make sense!
+               // I am not sure if creating a temporary this was is allowed :/
+               let node_root = temp_node.root();
+               let node = node_root.r();
+               assert!(node.is_element());
+               let elem: JSRef<Element> = ElementCast::to_ref(node).unwrap();
+               Some(Temporary::from_rooted(elem))
+            }
+            _ => None
         }
     }
 
